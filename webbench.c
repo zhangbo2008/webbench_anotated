@@ -428,15 +428,8 @@ static int bench(void)     //发送请求的逻辑代码
 
 
 
-   /* not needed, since we have alarm() in childrens */
-   /* wait 4 next system clock tick */
-   /*
-  cas=time(NULL);
-  while(time(NULL)==cas)
-        sched_yield();
-  */
 
-   /* fork childs */    // 建立多进程来运行. 
+   /* fork childs */    // 建立多进程来运行.  每一个请求是一个子进程.
    for (i = 0; i < clients; i++)
    {
       pid = fork();
@@ -447,6 +440,15 @@ static int bench(void)     //发送请求的逻辑代码
          break;  //如果建立失败,就休眠一秒再关闭.
       }
    }
+
+
+
+
+
+
+
+
+
 
    if (pid < (pid_t)0)
    {
@@ -468,7 +470,7 @@ static int bench(void)     //发送请求的逻辑代码
          benchcore(proxyhost, proxyport, request);
 
       /* write results to pipe */
-      f = fdopen(mypipe[1], "w");
+      f = fdopen(mypipe[1], "w"); // 子进程用来写入数据
       if (f == NULL)
       {
          perror("open pipe for writing failed.");
@@ -479,9 +481,12 @@ static int bench(void)     //发送请求的逻辑代码
       fclose(f);
       return 0;
    }
+
+
+
    else
    {
-      f = fdopen(mypipe[0], "r");
+      f = fdopen(mypipe[0], "r");  //父进程用来读取子进程写入的数据然后进行打印.
       if (f == NULL)
       {
          perror("open pipe for reading failed.");
@@ -504,17 +509,22 @@ static int bench(void)     //发送请求的逻辑代码
          failed += j;
          bytes += k;
          /* fprintf(stderr,"*Knock* %d %d read=%d\n",speed,failed,pid); */
-         if (--clients == 0)
+         if (--clients == 0)//每次成功读取一个,就clinet--. 所以最后的父进程会忙等待一直到子进程都结束.
             break;
       }
       fclose(f);
-
+// 子进程都结束了,父进程才进行打印最后的汇总消息.
       printf("\nSpeed=%d pages/min, %d bytes/sec.\nRequests: %d susceed, %d failed.\n",
              (int)((speed + failed) / (benchtime / 60.0f)),
              (int)(bytes / (float)benchtime),
              speed,
              failed);
    }
+
+
+
+
+   
    return i;
 }
 
